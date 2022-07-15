@@ -1,0 +1,31 @@
+services:
+  db:
+    image: mysql
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - ./create_tables.sql:/docker-entrypoint-initdb.d/10_create_tables.sql
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+
+  fastapi:
+    build: .
+    ports:
+      - 8000:8000
+    volumes:
+      - ./catalog:/code/catalog
+    environment:
+      MYSQL_PASSWORD: secret
+      MYSQL_USER: root
+      MYSQL_DB: product_catalog_db
+      MYSQL_HOST: db
+      OFFERS_API_BASE_URL: https://applifting-python-excercise-ms.herokuapp.com/api/v1
+    depends_on:
+      db:
+        condition: service_healthy
