@@ -10,6 +10,7 @@ import mysql.connector.pooling
 from fastapi import HTTPException
 
 from catalog.models import Product
+from catalog.offers import get_access_token
 
 
 log = logging.getLogger()
@@ -132,11 +133,29 @@ class DB:
 
 
 class ProductCatalogDB(DB):
-    ACCESS_TOKEN_PARAM_NAME = "access_token"
+    def __init__(self):
+        super().__init__()
+
+        url = environ['OFFERS_API_BASE_URL']
+        token_dict = self._select_access_token()
+        if token_dict:
+            msg = f"Found access token belongs to service {token_dict['url']} but given service is {url}"
+            assert token_dict['url'] == url, msg
+        else:
+            token_dict = self._insert_access_token(get_access_token(), url)
+
+        self._service_id = token_dict['id']
+        self._access_token = token_dict['access_token']
+
+    @property
+    def access_token(self):
+        return self._access_token
 
     def insert_product(self, product: Product):
         params = dict(product)
-        insert = "INSERT INTO product (name, description) VALUES (%(name)s, %(description)s) ON DUPLICATE KEY UPDATE id=id"
+        params |= dict(service_id=self._service_id)
+        insert = """INSERT INTO product (service_id, name, description) 
+                    VALUES (%(service_id)s, %(name)s, %(description)s) ON DUPLICATE KEY UPDATE id=id"""
         rowcount = self._execute(insert, params)
         if not rowcount == 1:
             log.warning("Duplicit product name %s", product.name)
@@ -180,11 +199,8 @@ class ProductCatalogDB(DB):
 
     def list_all_product_ids(self):
         select = "SELECT JSON_ARRAYAGG(id) AS ids FROM product"
-        result = self._select_one(select)
-        if not result:
-            return []
-        else:
-            return json.loads(result["ids"])
+        ids = self._select_one(select)["ids"]
+        return json.loads(ids) if ids else []
 
     def insert_product_offers(self, product_id: int, offers: list[dict]):
         for offer in offers:
@@ -207,30 +223,23 @@ class ProductCatalogDB(DB):
         offers = self._select_all(select, dict(product_id=product_id))
         return offers
 
-    def select_access_token(self):
-        select = 'SELECT value FROM params WHERE name=%(param_name)s'
-        token = self._select_one(select, dict(param_name=self.ACCESS_TOKEN_PARAM_NAME))
-        if token:
-            return token["value"]
-        else:
+    def _select_access_token(self) -> dict:
+        select = 'SELECT id, access_token, url FROM service'
+        response = self._select_all(select)
+        if res_len := len(response) == 1:
+            return response[0]
+        elif res_len == 0:
             return None
+        else:
+            raise RuntimeError("More than one access tokens found!")
 
-    def insert_access_token(self, value: str):
-        log.debug("value %s", value)
-        insert = 'INSERT INTO params VALUES (%(param_name)s, %(value)s) ON DUPLICATE KEY UPDATE name=name'
-        rowcount = self._execute(insert, dict(param_name=self.ACCESS_TOKEN_PARAM_NAME, value=value))
+    def _insert_access_token(self, access_token: str, url: str) -> dict:
+        insert = 'INSERT INTO service (access_token, url) VALUES (%(access_token)s, %(url)s) ON DUPLICATE KEY UPDATE id=id'
+        rowcount = self._execute(insert, dict(access_token=access_token, url=url))
+        assert rowcount == 1, "Can not insert access token into DB"
+        log.warning("Access successfully inserted")
+        return self._select_access_token()
 
-        if rowcount == 1:
-            log.debug("Access token successfully inserted")
-            return value
-
-        log.warning("Access token already exists")
-        token = self.select_access_token()
-
-        if not token:
-            raise RuntimeError("Can not insert access token")
-
-        return token
 
 
 

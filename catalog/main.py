@@ -1,5 +1,4 @@
 import sys
-import time
 import logging
 
 from fastapi import FastAPI, BackgroundTasks, status
@@ -18,9 +17,8 @@ log.addHandler(stream_handler)
 
 
 app = FastAPI()
-#time.sleep(3)
 db = ProductCatalogDB()
-offers_api = OffersApi(db)
+offers_api = OffersApi(db.access_token)
 
 
 @app.get("/product/{id}")
@@ -54,11 +52,15 @@ def get_product_offers(id: int):
 @repeat_every(seconds=10)
 def update_offers():
     log.debug("updating offers")
-    product_ids = db.list_all_product_ids()
-    for product_id in product_ids:
-        offers = offers_api.get_offers(product_id)
-        db.insert_product_offers(product_id, offers)
-        db.delete_obsolete_product_offers(product_id, offers)
+    try:
+        product_ids = db.list_all_product_ids()
+        for product_id in product_ids:
+            offers = offers_api.get_offers(product_id)
+            db.insert_product_offers(product_id, offers)
+            db.delete_obsolete_product_offers(product_id, offers)
+    except Exception as err:
+        log.error("Error: %r", err)
+    log.debug("offers updated")
 
 
 def register_product(product: Product):

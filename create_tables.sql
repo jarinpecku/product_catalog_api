@@ -2,11 +2,20 @@ CREATE DATABASE product_catalog_db;
 
 USE product_catalog_db;
 
+CREATE TABLE `service` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `url` VARCHAR(100) NOT NULL COMMENT 'microservice base url',
+    `access_token` VARCHAR(100) NOT NULL COMMENT 'microservice access token',
+    PRIMARY KEY (`id`)
+) COMMENT='registered microservices';
+
 CREATE TABLE `product` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL COMMENT 'Name of the product',
+  `service_id` INT UNSIGNED NOT NULL COMMENT 'id of service used for product registration',
+  `name` VARCHAR(100) NOT NULL COMMENT 'Name of the product',
   `description` TEXT NOT NULL COMMENT 'Product description',
   PRIMARY KEY (`id`),
+  FOREIGN KEY (`service_id`) REFERENCES `service`(`id`) ON DELETE CASCADE,
   UNIQUE KEY (`name`)
 ) COMMENT='table of unique products';
 
@@ -20,9 +29,3 @@ CREATE TABLE `offer` (
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE,
   UNIQUE KEY (`product_id`, `foreign_id`)
 ) COMMENT='product offers';
-
-CREATE TABLE `params` (
-    `name` VARCHAR(100) NOT NULL COMMENT 'parameter name',
-    `value` VARCHAR(100) COMMENT 'parameter value',
-    PRIMARY KEY (`name`)
-) COMMENT='shared parameters';

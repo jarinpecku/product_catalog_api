@@ -11,7 +11,7 @@ services:
     healthcheck:
       test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
       interval: 3s
-      timeout: 10s
+      timeout: 30s
       retries: 10
 
   fastapi:
