@@ -23,9 +23,17 @@ CREATE TABLE `offer` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `product_id` INT UNSIGNED NOT NULL COMMENT 'multiple offers belongs to unique product',
   `foreign_id` INT UNSIGNED NOT NULL COMMENT 'id form offers microservice',
-  `price` INT NOT NULL COMMENT 'price of the offer, a unit should be specified, lets say it is EUR, I think it should be FLOAT but the given data model says INT',
   `items_in_stock` INT NOT NULL COMMENT 'number of items in stock',
   PRIMARY KEY (`id`),
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE,
   UNIQUE KEY (`product_id`, `foreign_id`)
 ) COMMENT='product offers';
+
+CREATE TABLE `price` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `offer_id` INT UNSIGNED NOT NULL COMMENT 'multiple prices belongs to unique offer',
+    `price` INT NOT NULL COMMENT 'price of the offer, a unit should be specified, lets say it is EUR, I think it should be FLOAT but the given data model says INT',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'price creation time',
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`offer_id`) REFERENCES `offer`(`id`) ON DELETE CASCADE
+) COMMENT='offer prices';

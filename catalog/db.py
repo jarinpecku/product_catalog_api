@@ -206,9 +206,9 @@ class ProductCatalogDB(DB):
         for offer in offers:
             offer["product_id"] = product_id
 
-        insert = """INSERT INTO offer (product_id, foreign_id, price, items_in_stock)
-                    VALUES (%(product_id)s, %(id)s, %(price)s, %(items_in_stock)s)
-                    ON DUPLICATE KEY UPDATE price=VALUES(price), items_in_stock=VALUES(items_in_stock)"""
+        insert = """INSERT INTO offer (product_id, foreign_id, items_in_stock)
+                    VALUES (%(product_id)s, %(id)s, %(items_in_stock)s)
+                    ON DUPLICATE KEY UPDATE items_in_stock=VALUES(items_in_stock)"""
         rowcount = self._insert_many(insert, offers)
         log.debug("num of offers being inserted: %d, rowcount: %d", len(offers), rowcount)
 
@@ -219,9 +219,26 @@ class ProductCatalogDB(DB):
         log.debug("%d offers deleted", rowcount)
 
     def select_product_offers(self, product_id: int):
-        select = "SELECT id AS offer_id, product_id, price, items_in_stock FROM offer WHERE product_id=%(product_id)s"
-        offers = self._select_all(select, dict(product_id=product_id))
-        return offers
+        select = """SELECT 
+                        o.id AS offer_id,
+                        o.product_id AS product_id,
+                        o.foreign_id AS foreign_id,
+                        p.price AS price,
+                        o.items_in_stock AS items_in_stock 
+                    FROM offer AS o LEFT JOIN price AS p ON o.id=p.offer_id
+                        AND o.product_id=%(product_id)s 
+                        AND p.id=(SELECT max(id) FROM price WHERE offer_id=o.id)"""
+        return self._select_all(select, dict(product_id=product_id))
+
+    def insert_prices(self, prices: list):
+        insert = "INSERT INTO price (offer_id, price) VALUES (%(offer_id)s, %(price)s)"
+        rowcount = self._insert_many(insert, prices)
+        if rowcount > 0:
+            log.debug("%d prices inserted", rowcount)
+
+    def select_offer_prices(self, offer_id: int) -> list[dict]:
+        select = "SELECT price, created_at AS valid_from FROM price WHERE offer_id=%(offer_id)s"
+        return self._select_all(select, dict(offer_id=offer_id))
 
     def _select_access_token(self) -> dict:
         select = 'SELECT id, access_token, url FROM service'
