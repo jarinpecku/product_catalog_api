@@ -21,6 +21,8 @@ def compute_prices_to_insert(api_offers, db_offers):
 
 
 def calculate_growth(prices: list[dict]) -> float:
+    if len(prices) < 1:
+        return None
     first = prices[0]["price"]
     last = prices[-1]["price"]
     return round((last - first) / (first / 100), 2)

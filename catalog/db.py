@@ -187,6 +187,8 @@ class ProductCatalogDB(DB):
         else:
             log.warning("Product %d not found", id)
             raise HTTPException(status_code=404, detail="Product not found")
+        product.id = id
+        return dict(product)
 
     def delete_product(self, id: int):
         delete = "DELETE FROM product WHERE id=%(id)s"
