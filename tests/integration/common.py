@@ -1,7 +1,7 @@
 import mysql.connector
 
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1"
 MYSQL_PASSWORD = "secret"
 MYSQL_USER = "root"
 MYSQL_DB = "product_catalog_db"

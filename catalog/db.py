@@ -8,7 +8,7 @@ from typing import Iterable
 import mysql.connector.pooling
 from fastapi import HTTPException
 
-from catalog.models import Product
+from catalog.models import Product, ProductNoId
 from catalog.offers import get_access_token
 
 
@@ -147,9 +147,12 @@ class ProductCatalogDB(DB):
     def access_token(self):
         return self._access_token
 
-    def insert_product(self, product: Product) -> int:
+    def insert_product(self, product: ProductNoId) -> int:
         """
         Inserts given product into product table.
+
+        raises:
+            HTTPException: Product of this name already exists
         """
         params = dict(product)
         params |= dict(service_id=self._service_id)
@@ -184,7 +187,7 @@ class ProductCatalogDB(DB):
             log.warning("Product %d not found", id)
             raise HTTPException(status_code=404, detail="Product not found")
 
-    def update_product(self, id: int, product: Product) -> dict:
+    def update_product(self, id: int, product: ProductNoId) -> dict:
         """
         Update product of given id.
 
@@ -192,14 +195,14 @@ class ProductCatalogDB(DB):
             HTTPException: Product not found
         """
         update = "UPDATE product SET name=%(name)s, description=%(description)s WHERE id=%(id)s"
-        rowcount = self._execute(update, dict(id=id, name=product.name, description=product.description))
+        params = dict(id=id, name=product.name, description=product.description)
+        rowcount = self._execute(update, params)
         if rowcount == 1:
             log.info("Product %d successfully updated", id)
         else:
             log.warning("Product %d not found", id)
             raise HTTPException(status_code=404, detail="Product not found")
-        product.id = id
-        return dict(product)
+        return params
 
     def delete_product(self, id: int) -> None:
         """

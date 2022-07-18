@@ -4,10 +4,12 @@ from datetime import datetime
 
 from fastapi import FastAPI, BackgroundTasks, status
 from fastapi_utils.tasks import repeat_every
+from pydantic import BaseModel
 
 from catalog.db import ProductCatalogDB
 from catalog.offers import OffersApi
-from catalog.models import Product
+from catalog.models import Product, ProductNoId, product_not_found_response, product_conflict_response
+from catalog.models import delete_response, list_of_offers, prices
 from catalog.common import compute_prices_to_insert, calculate_growth, cleanup_offers
 
 
@@ -18,40 +20,45 @@ stream_handler.setLevel(logging.DEBUG)
 log.addHandler(stream_handler)
 
 
-app = FastAPI()
+app = FastAPI(title="Product aggregator microservice",
+              description="REST API JSON Python microservice which allows users to browse a product catalog "
+                          "and which automatically updates prices from the offer service.",
+              version="0.1.0",)
 db = ProductCatalogDB()
 offers_api = OffersApi(db.access_token)
 
 
-@app.get("/product/{id}")
+@app.get("/product/{id}", response_model=Product, responses=product_not_found_response)
 def get_product(id: int) -> dict:
     return db.select_product(id)
 
 
-@app.post("/product", status_code=status.HTTP_201_CREATED)
-def post_product(product: Product, backgroud_tasks: BackgroundTasks) -> dict:
-    product.id = db.insert_product(product)
+@app.post("/product", status_code=status.HTTP_201_CREATED, response_model=Product, responses=product_conflict_response)
+def post_product(product: ProductNoId, backgroud_tasks: BackgroundTasks) -> dict:
+    id = db.insert_product(product)
     backgroud_tasks.add_task(register_product, product)
-    return dict(product)
+    product_dict = dict(product)
+    product_dict["id"] = id
+    return product_dict
 
 
-@app.put("/product/{id}")
-def put_product(id: int, product: Product) -> dict:
+@app.put("/product/{id}", response_model=Product, responses=product_not_found_response)
+def put_product(id: int, product: ProductNoId) -> dict:
     return db.update_product(id, product)
 
 
-@app.delete("/product/{id}")
+@app.delete("/product/{id}", responses=delete_response)
 def delete_product(id: int):
     db.delete_product(id)
 
 
-@app.get("/product/{id}/offers")
+@app.get("/product/{id}/offers", responses=list_of_offers)
 def get_product_offers(id: int, on_stock: bool = True) -> list[dict]:
     # select_product_offers function returns more than API caller= should see - we have to clean the returned data
     return cleanup_offers(db.select_product_offers(id, on_stock))
 
 
-@app.get("/offer/{id}/prices")
+@app.get("/offer/{id}/prices", responses=prices)
 def get_offer_prices(id: int, start: datetime = None, end: datetime = None) -> dict:
     prices = db.select_offer_prices(id, start, end)
     growth = calculate_growth(prices)
