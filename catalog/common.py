@@ -4,7 +4,13 @@ import logging
 log = logging.getLogger()
 
 
-def compute_prices_to_insert(api_offers, db_offers):
+def compute_prices_to_insert(api_offers: list[dict], db_offers: list[dict]) -> list[dict]:
+    """
+    Goes through all api and db offers and search for match.
+    If the prices are the same there is no need to insert new price.
+    If they are different even or if the price in db is missing
+    create new price record to be inserted into DB.
+    """
     prices_to_insert = []
     for api_offer in api_offers:
         for db_offer in db_offers:
@@ -21,6 +27,9 @@ def compute_prices_to_insert(api_offers, db_offers):
 
 
 def calculate_growth(prices: list[dict]) -> float:
+    """
+    Takes first and last price and calculates rise/fall in percents.
+    """
     if len(prices) < 1:
         return None
     first = prices[0]["price"]
@@ -28,7 +37,11 @@ def calculate_growth(prices: list[dict]) -> float:
     return round((last - first) / (first / 100), 2)
 
 
-def cleanup_offers(offers):
+def cleanup_offers(offers: list[dict]) -> list[dict]:
+    """
+    Goes through the given offers an removes 'foreign_id' key from each offer.
+    Offers with no price are also removed.
+    """
     priced_offers = []
     for offer in offers:
         if offer['price']:

@@ -1,5 +1,6 @@
 import sys
 import logging
+from datetime import datetime
 
 from fastapi import FastAPI, BackgroundTasks, status
 from fastapi_utils.tasks import repeat_every
@@ -23,7 +24,7 @@ offers_api = OffersApi(db.access_token)
 
 
 @app.get("/product/{id}")
-def get_product(id: int):
+def get_product(id: int) -> dict:
     return db.select_product(id)
 
 
@@ -35,30 +36,34 @@ def post_product(product: Product, backgroud_tasks: BackgroundTasks) -> dict:
 
 
 @app.put("/product/{id}")
-def put_product(id: int, product: Product):
+def put_product(id: int, product: Product) -> dict:
     return db.update_product(id, product)
 
 
 @app.delete("/product/{id}")
 def delete_product(id: int):
-    return db.delete_product(id)
+    db.delete_product(id)
 
 
 @app.get("/product/{id}/offers")
-def get_product_offers(id: int):
-    return cleanup_offers(db.select_product_offers(id))
+def get_product_offers(id: int, on_stock: bool = True) -> list[dict]:
+    # select_product_offers function returns more than API caller= should see - we have to clean the returned data
+    return cleanup_offers(db.select_product_offers(id, on_stock))
 
 
 @app.get("/offer/{id}/prices")
-def get_offer_prices(id: int):
-    prices = db.select_offer_prices(id)
+def get_offer_prices(id: int, start: datetime = None, end: datetime = None) -> dict:
+    prices = db.select_offer_prices(id, start, end)
     growth = calculate_growth(prices)
     return dict(prices=prices, growth=growth)
 
 
 @app.on_event("startup")
-@repeat_every(seconds=10)
+@repeat_every(seconds=60)
 def update_offers():
+    """
+    Periodic task to update all offers.
+    """
     log.debug("updating offers")
     try:
         _update_offers()
@@ -68,6 +73,16 @@ def update_offers():
 
 
 def _update_offers():
+    """
+    First we have to list all products.
+    Then for each product:
+        - get new offers from API
+        - insert new offers into DB, update stock
+        - delete obsolete offers
+        - get all actual product offers
+        - compute prices to be inserted into DB by comparing actual product offers with offers from API
+        - insert computed prices into DB
+    """
     product_ids = db.list_all_product_ids()
     for product_id in product_ids:
         api_offers = offers_api.get_offers(product_id)
