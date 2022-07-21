@@ -1,1 +1,1 @@
-web: gunicorn gettingstarted.wsgi
+web: uvicorn catalog.main:app --host 0.0.0.0 --port 80
