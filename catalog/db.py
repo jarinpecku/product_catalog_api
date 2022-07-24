@@ -30,6 +30,7 @@ class DB:
                                                                      user=environ["MYSQL_USER"],
                                                                      password=environ["MYSQL_PASSWORD"],
                                                                      autocommit=True,
+                                                                     pool_name="mypool",
                                                                      )
 
     def _select_all(self, query: str, args: Iterable = ()) -> list[dict]:
