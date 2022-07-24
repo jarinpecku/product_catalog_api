@@ -24,7 +24,7 @@ def places(arg_list: list) -> str:
 
 class DB:
     def __init__(self):
-        self.__cnxpool = mysql.connector.pooling.MySQLConnectionPool(pool_size=8,
+        self.__cnxpool = mysql.connector.pooling.MySQLConnectionPool(pool_size=4,
                                                                      host=environ["MYSQL_HOST"],
                                                                      db=environ["MYSQL_DB"],
                                                                      user=environ["MYSQL_USER"],
