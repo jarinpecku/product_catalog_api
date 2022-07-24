@@ -16,6 +16,10 @@ $ docker-compose up
 
 Then open [127.0.0.1/docs](127.0.0.1/docs) or [127.0.0.1/redoc](127.0.0.1/redoc), see the docs with all the examples and responses and start to play!
 
+# Heroku
+
+The application is depoyed to the [heroku](https://applifting-product-catalog.herokuapp.com). So you can play with it without a docker through the [API](https://applifting-product-catalog.herokuapp.com/docs). Enjoy! 
+
 # Test
 
 There are two types of tests implemented. Integration and unit tests:
